@@ -1,4 +1,6 @@
 #include <stdio.h>
+#ifndef PROCESS_H
+#define PROCESS_H
 #define MAX_INSTR 20
 
 typedef struct {
@@ -9,5 +11,7 @@ typedef struct {
     char status[10]; // "Ready", "Executing", "Finished"
     
     int num_instructions;
-    char intructions[MAX_INSTR][20]
+    char instructions[MAX_INSTR][20];
 } process_t;
+
+#endif

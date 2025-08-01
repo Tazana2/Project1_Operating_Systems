@@ -8,7 +8,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -std=c11 -I$(INC_DIR)
 
 # Source files
-SRCS = $(SRC_DIR)/main.c
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/loader.c
 
 # Object files
 OBJS = $(SRCS:.c=.o)
