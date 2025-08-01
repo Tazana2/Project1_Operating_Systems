@@ -1,4 +1,5 @@
 #include <stdio.h>
+#define MAX_INSTR 20
 
 typedef struct {
     int pid;
@@ -6,4 +7,7 @@ typedef struct {
     int ax, bx, cx; // Simulated registers
     int quantum;
     char status[10]; // "Ready", "Executing", "Finished"
+    
+    int num_instructions;
+    char intructions[MAX_INSTR][20]
 } process_t;
