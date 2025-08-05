@@ -32,6 +32,8 @@ int load_process(FILE* file, process_t processes[], int max_processes){
                     processes[i].status);
 
             processes[i].num_instructions = 0;
+            processes[i].last_jump = -10; // Initialize last jump to an invalid value
+            processes[i].repeated_jumps = 0;
         } else if(i >= 0 && strlen(line) > 1) {
             line[strcspn(line, "\n")] = 0; // delete jumpline
             strcpy(processes[i].instructions[processes[i].num_instructions++], line);

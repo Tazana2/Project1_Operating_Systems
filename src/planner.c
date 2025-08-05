@@ -21,7 +21,9 @@ void exec_instruction(process_t* p, const char* instr) {
     else if (strncmp(instr, "JMP", 3) == 0) {
         int dest;
         sscanf(instr, "JMP %d", &dest);
-        p->pc = dest;
+        if (p->last_jump == dest) p->repeated_jumps++;
+        p->last_jump = dest;
+        p->pc = dest - 1; // -1 because pc will be incremented after this instruction
     } 
     else {
         printf("Unkown instruction: %s\n", instr);
@@ -42,23 +44,27 @@ void run_round_robin(process_t processes[], int num_processes) {
             all_finished = false;
 
             printf("\n[Switching context]\n");
-            printf("Saving process status %d: PC=%d, AX=%d, BX=%d, CX=%d\n",
+            printf("Saving process (%d) status: PC=%d, AX=%d, BX=%d, CX=%d\n",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
 
             strcpy(p->status, "Executing");
 
             int executed = 0;
             while (executed < p->quantum && p->pc < p->num_instructions) {
-                printf("- Executing %s\n", p->instructions[p->pc]);
+                printf("- %d. Executing %s\n", p->pc, p->instructions[p->pc]);
                 exec_instruction(p, p->instructions[p->pc]);
                 p->pc++;
                 executed++;
+                if (p->repeated_jumps > MAX_REPEATED_JUMPS) {
+                    printf("Process %d has exceeded the maximum number of repeated jumps (%d). Terminating process...\n", p->pid, MAX_REPEATED_JUMPS);
+                    break;
+                }
             }
 
-            printf("Updated process status %d: PC=%d, AX=%d, BX=%d, CX=%d\n",
+            printf("Updated process (%d) status: PC=%d, AX=%d, BX=%d, CX=%d\n",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
 
-            if (p->pc >= p->num_instructions) {
+            if (p->pc >= p->num_instructions || p->repeated_jumps > MAX_REPEATED_JUMPS) {
                 strcpy(p->status, "Finished");
                 printf("- Process %d finished.\n", p->pid);
             } else {
