@@ -7,3 +7,8 @@ NOP
 SUB CX, 1
 MUL AX, CX
 INC AX
+
+1 0 0 0 0 2 Ready
+INC AX
+JMP 0
+ADD AX, BX
