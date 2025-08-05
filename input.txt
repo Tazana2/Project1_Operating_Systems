@@ -3,8 +3,7 @@ ADD AX, BX
 INC AX
 NOP
 
-2 0 1 1 1 2 Ready
+2 0 5 2 2 2 Ready
 SUB CX, 1
 MUL AX, CX
-JMP 0
-NOP
+INC AX
