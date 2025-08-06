@@ -4,6 +4,6 @@
 #include <stdio.h>
 #include "process.h"
 
-int load_process(FILE* file, process_t processes[], int max_processes);
+int load_processes(const char* filename, process_t processes[], int max_processes);
 
 #endif

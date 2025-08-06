@@ -1,34 +1,82 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <ctype.h>
 #include "planner.h"
 
-void exec_instruction(process_t* p, const char* instr) {
-    if (strcmp(instr, "NOP") == 0) return;
+int* get_register_ptr(process_t* p, const char* reg_name) {
+    if (strcmp(reg_name, "AX") == 0) return &(p->ax);
+    if (strcmp(reg_name, "BX") == 0) return &(p->bx);
+    if (strcmp(reg_name, "CX") == 0) return &(p->cx);
+    return NULL;
+}
 
-    else if (strcmp(instr, "INC AX") == 0) {
-        p->ax++;
-    } 
-    else if (strcmp(instr, "ADD AX, BX") == 0) {
-        p->ax += p->bx;
-    } 
-    else if (strcmp(instr, "SUB CX, 1") == 0) {
-        p->cx -= 1;
-    } 
-    else if (strcmp(instr, "MUL AX, CX") == 0) {
-        p->ax *= p->cx;
-    } 
-    else if (strncmp(instr, "JMP", 3) == 0) {
-        int dest;
-        sscanf(instr, "JMP %d", &dest);
-        if (p->last_jump == dest) p->repeated_jumps++;
-        p->last_jump = dest;
-        p->pc = dest - 1; // -1 because pc will be incremented after this instruction
-    } 
-    else {
-        printf("Unkown instruction: %s\n", instr);
+void exec_instruction(process_t* p, const char* instr) {
+    char command[5];      // "ADD", "SUB", "INC", etc.
+    char arg1_str[10];    
+    char arg2_str[10];    
+    
+    if (strcmp(instr, "NOP") == 0) {
+        return;
+    }
+
+    if (sscanf(instr, "%4s %9[^,], %9s", command, arg1_str, arg2_str) == 3) {
+        int* dest_reg = get_register_ptr(p, arg1_str);
+        if (!dest_reg) {
+            printf("Error: Unknown register in '%s'\n", instr);
+            return;
+        }
+
+        int value;
+        if (isdigit(arg2_str[0]) || (arg2_str[0] == '-' && isdigit(arg2_str[1]))) {
+            value = atoi(arg2_str);
+        } else {
+            int* src_reg = get_register_ptr(p, arg2_str); // It's a register
+            if (!src_reg) {
+                printf("Error: Register unknown in '%s'\n", instr);
+                return;
+            }
+            value = *src_reg;
+        }
+        
+        if (strcmp(command, "ADD") == 0) {
+            *dest_reg += value;
+        } else if (strcmp(command, "SUB") == 0) {
+            *dest_reg -= value;
+        } else if (strcmp(command, "MUL") == 0) {
+            *dest_reg *= value;
+        } else {
+            printf("Error: Multiple command in '%s'\n", instr);
+        }
+    } else if (sscanf(instr, "%4s %9s", command, arg1_str) == 2) {
+        if (strcmp(command, "INC") == 0) {
+            int* reg = get_register_ptr(p, arg1_str);
+            if(reg) {
+                (*reg)++;
+            } else{
+                printf("Error: Unknown register in '%s'\n", instr);
+            }
+        } else if (strcmp(command, "JMP") == 0){
+            int dest = atoi(arg1_str);
+
+            if (p->last_jump == dest) {
+                p->repeated_jumps++;
+            } else {
+                p->repeated_jumps = 0;
+            }
+            p->last_jump = dest;
+
+            p->pc = dest - 1;
+        } else {
+            printf("Error: Unknown command in '%s'\n", instr);
+        }
+
+    } else {
+        printf("Error: Unknown sintax '%s'\n", instr);
     }
 }
+
 
 void run_round_robin(process_t processes[], int num_processes) {
     bool all_finished = false;

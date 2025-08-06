@@ -20,18 +20,9 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    FILE* ptr;
-    ptr = fopen(argv[2], "r");
-
-    if (ptr == NULL) {
-        fprintf(stderr, "The provided file is not readable");
-        return EXIT_FAILURE;
-    }
-    
     process_t processes[MAX_PROCESSES];
-    int num_processes = load_process(ptr, processes, MAX_PROCESSES);
+    int num_processes = load_processes(argv[2], processes, MAX_PROCESSES);
 
-    fclose(ptr);
 
     printf("These %d processes have been loaded:\n", num_processes);
     for (int i = 0; i < num_processes; i++) {
