@@ -3,16 +3,20 @@
 #include <ctype.h>
 #include "process.h"
 #include "loader.h"
+#include "utils/logger.h"
 
 int load_processes(const char* filename, process_t processes[], int max_processes) {
     FILE* file = fopen(filename, "r");
     if (!file) {
+        log_error("Error opening the processes file: %s", filename);
         perror("Error openning the processes file");
         return 0;
     }
 
     char line[256];
     int process_count = 0;
+
+    log_info("Loading processes from %s", filename);
 
     while (fgets(line, sizeof(line), file) != NULL && process_count < max_processes) {
         
@@ -60,12 +64,14 @@ int load_processes(const char* filename, process_t processes[], int max_processe
                 }
                 fclose(instr_file);
             } else {
+                log_error("Can't find the instructions file '%s' for PID %d.", instr_filename, p->pid);
                 printf("Warning: Can't find the instructions file '%s' for PID %d.\n", instr_filename, p->pid);
             }
             process_count++;
         }
     }
 
+    log_info("Loaded %d processes", process_count);
     fclose(file);
     return process_count;
 }

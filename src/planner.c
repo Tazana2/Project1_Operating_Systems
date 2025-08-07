@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "planner.h"
+#include "utils/logger.h"
 
 int* get_register_ptr(process_t* p, const char* reg_name) {
     if (strcmp(reg_name, "AX") == 0) return &(p->ax);
@@ -92,10 +93,12 @@ void run_round_robin(process_t processes[], int num_processes) {
             all_finished = false;
 
             printf("\n[Switching context]\n");
+            log_info("Switching context");
             printf("Saving process (%d) status: PC=%d, AX=%d, BX=%d, CX=%d\n",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
 
             strcpy(p->status, "Executing");
+            log_info("Executing process %d", p->pid);
 
             int executed = 0;
             while (executed < p->quantum && p->pc < p->num_instructions) {
@@ -105,21 +108,27 @@ void run_round_robin(process_t processes[], int num_processes) {
                 executed++;
                 if (p->repeated_jumps > MAX_REPEATED_JUMPS) {
                     printf("Process %d has exceeded the maximum number of repeated jumps (%d). Terminating process...\n", p->pid, MAX_REPEATED_JUMPS);
+                    log_error("Process %d exceeded max repeated jumps. Terminating process", p->pid);
                     break;
                 }
             }
 
             printf("Updated process (%d) status: PC=%d, AX=%d, BX=%d, CX=%d\n",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
+            log_info("Process %d updated status: PC=%d, AX=%d, BX=%d, CX=%d",
+                    p->pid, p->pc, p->ax, p->bx, p->cx);
 
             if (p->pc >= p->num_instructions || p->repeated_jumps > MAX_REPEATED_JUMPS) {
                 strcpy(p->status, "Finished");
-                printf("- Process %d finished.\n", p->pid);
+                printf("- Process %d finished\n", p->pid);
+                log_info("Process %d finished execution", p->pid);
             } else {
                 strcpy(p->status, "Ready");
+                log_info("Process %d set to Ready", p->pid);
             }
         }
     }
 
     printf("\n[End of simulation: All process have finished.]\n");
+    log_info("End of simularion: All processes have finished execution");
 }
