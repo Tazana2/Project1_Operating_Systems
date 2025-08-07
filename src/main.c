@@ -40,5 +40,6 @@ int main(int argc, char *argv[]) {
 
     run_round_robin(processes, num_processes);
 
+    close_logger();
     return 0;
 }
