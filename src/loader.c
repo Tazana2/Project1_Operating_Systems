@@ -5,7 +5,40 @@
 #include "loader.h"
 #include "utils/logger.h"
 
-// Reads a process definition file and loads each process + its instruction file
+/*
+    * Function: load_processes
+    * -----------------------------------------------------------------------------------
+    * Purpose:
+    *   Reads process definitions from a given text file and loads them into an array
+    *   of process_t structures. Each process entry may also load its own set of 
+    *   instructions from a separate file named after its PID (e.g., "123.txt").
+    * -----------------------------------------------------------------------------------
+    * Parameters:
+    *   filename      - Path to the file containing process definitions.
+    *   processes[]   - Array of process_t structures to store the loaded processes.
+    *   max_processes - Maximum number of processes to load into the array.
+    * -----------------------------------------------------------------------------------
+    * Returns:
+    *   The number of processes successfully loaded into memory.
+    * -----------------------------------------------------------------------------------
+    * Behavior:
+    *   - Attempts to open the specified file; if it fails, logs an error and returns 0.
+    *   - Reads the file line-by-line, parsing each process definition until either
+    *     EOF is reached or max_processes is met.
+    *   - Initializes each process_t structure with default values:
+    *       * PID set to -1, registers and counters reset, status set to "Ready".
+    *   - Parses tokens in the format:
+    *       * "PID:<number>"      → sets the process ID.
+    *       * "Quantum=<number>"  → sets the time quantum for scheduling.
+    *       * "<REG>=<number>"    → assigns values to registers AX, BX, CX.
+    *   - If a valid PID is found, attempts to open a corresponding instruction file
+    *     named "<PID>.txt". If found, reads instructions into the process's instruction list.
+    *   - Logs warnings if the instruction file for a process is missing.
+    *   - Logs the total number of processes loaded before returning that count.
+    * -----------------------------------------------------------------------------------
+    * Usage:
+    *  Called by the main function to initialize the process list before running the scheduler.
+*/
 int load_processes(const char* filename, process_t processes[], int max_processes) {
     FILE* file = fopen(filename, "r");
     if (!file) {

@@ -6,7 +6,23 @@
 #include "planner.h"
 #include "utils/logger.h"
 
-// Returns the address of the register inside the process struct
+/*
+    * Function: get_register_ptr
+    * -----------------------------------------------------------------------------------
+    * Purpose:
+    *   Returns a pointer to the requested CPU register of a given process.
+    * -----------------------------------------------------------------------------------
+    * Parameters:
+    *   p        - Pointer to the process structure.
+    *   reg_name - String representing the register name ("AX", "BX", "CX").
+    * -----------------------------------------------------------------------------------
+    * Returns:
+    *   Pointer to the corresponding integer register inside the process.
+    *   Returns NULL if the register name is unknown.
+    * -----------------------------------------------------------------------------------
+    * Usage:
+    *   Used by the instruction execution function to directly modify registers.
+*/
 int* get_register_ptr(process_t* p, const char* reg_name) {
     if (strcmp(reg_name, "AX") == 0) return &(p->ax);
     if (strcmp(reg_name, "BX") == 0) return &(p->bx);
@@ -14,24 +30,46 @@ int* get_register_ptr(process_t* p, const char* reg_name) {
     return NULL;
 }
 
-// Decode and execute a single instruction string on the process state
+/*
+    * Function: exec_instruction
+    * -----------------------------------------------------------------------------------
+    * Purpose:
+    *   Decodes and executes a single instruction for a given process.
+    * -----------------------------------------------------------------------------------
+    * Parameters:
+    *   p     - Pointer to the process structure to execute the instruction on.
+    *   instr - String containing the instruction to execute (e.g., "ADD AX, 5").
+    * -----------------------------------------------------------------------------------
+    * Behavior:
+    *   - Supports arithmetic operations (ADD, SUB, MUL).
+    *   - Supports increment operation (INC).
+    *   - Supports jump operation (JMP) with repeated jump detection.
+    *   - Ignores "NOP" instructions.
+    *   - Handles both register-to-register and register-to-immediate operations.
+    *   - Updates the process registers and program counter (pc) as needed.
+    * -----------------------------------------------------------------------------------
+    * Usage:
+    *   Called by the Round-Robin scheduler to execute each instruction in a process.
+*/
 void exec_instruction(process_t* p, const char* instr) {
     char command[5];      // "ADD", "SUB", "INC", etc.
-    char arg1_str[10];    
-    char arg2_str[10];    
+    char arg1_str[10];    // First argument (destination register or jump target)
+    char arg2_str[10];    // Second argument (value or source register)
     
     if (strcmp(instr, "NOP") == 0) { // do nothing
         return;
     }
 
+    // Format: COMMAND ARG1, ARG2 (e.g., "ADD AX, 5")
     if (sscanf(instr, "%4s %9[^,],%9s", command, arg1_str, arg2_str) == 3 ||
         sscanf(instr, "%4s %9[^,], %9s", command, arg1_str, arg2_str) == 3) {
-    int* dest_reg = get_register_ptr(p, arg1_str); // first operand (destination)
+        int* dest_reg = get_register_ptr(p, arg1_str); // first operand (destination)
         if (!dest_reg) {
             printf("Error: Unknown register in '%s'\n", instr);
             return;
         }
 
+        // Determine if ARG2 is an immediate value or another register
         int value;
         if (isdigit(arg2_str[0]) || (arg2_str[0] == '-' && isdigit(arg2_str[1]))) { // immediate value
             value = atoi(arg2_str);
@@ -44,47 +82,72 @@ void exec_instruction(process_t* p, const char* instr) {
             value = *src_reg;
         }
         
-    if (strcmp(command, "ADD") == 0) {      // ADD dest, src|imm
-            *dest_reg += value;
-        } else if (strcmp(command, "SUB") == 0) {
-            *dest_reg -= value;
-        } else if (strcmp(command, "MUL") == 0) {
-            *dest_reg *= value;
-        } else {
-            printf("Error: Unknown arithmetic command in '%s'\n", instr);
-        }
+        if (strcmp(command, "ADD") == 0) {      // ADD dest, src|imm
+                *dest_reg += value;
+            } else if (strcmp(command, "SUB") == 0) {
+                *dest_reg -= value;
+            } else if (strcmp(command, "MUL") == 0) {
+                *dest_reg *= value;
+            } else {
+                printf("Error: Unknown arithmetic command in '%s'\n", instr);
+            }
+
+    // Format: COMMAND ARG1 (e.g., "INC AX" or "JMP 5")
     } else if (sscanf(instr, "%4s %9s", command, arg1_str) == 2) {
-    if (strcmp(command, "INC") == 0) {      // INC reg
+        if (strcmp(command, "INC") == 0) {      // INC reg
             int* reg = get_register_ptr(p, arg1_str);
-            if(reg) {
+            if (reg) {
                 (*reg)++;
             } else{
                 printf("Error: Unknown register in '%s'\n", instr);
             }
-        } else if (strcmp(command, "JMP") == 0){
+        } else if (strcmp(command, "JMP") == 0) {
             int dest = atoi(arg1_str);
-            if(dest < 0 || dest >= p->num_instructions) {
+            if (dest < 0 || dest >= p->num_instructions) {
                 printf("Error: JMP destination out of range in '%s' (pc stays)\n", instr);
             } else {
-        if (p->last_jump == dest) { // same jump target again -> count repetition
+                // Track repeated jumps to detect infinite loops
+                if (p->last_jump == dest) {
                     p->repeated_jumps++;
                 } else {
                     p->repeated_jumps = 0;
                 }
                 p->last_jump = dest;
-        p->pc = dest - 1; // -1 because caller loop will ++ after return
+
+                // Adjust program counter to jump target (minus 1 due to increment after execution)
+                p->pc = dest - 1;
             }
         } else {
             printf("Error: Unknown command in '%s'\n", instr);
         }
-
     } else {
         printf("Error: Unknown sintax '%s'\n", instr);
     }
 }
 
-
-// Simple round-robin scheduler simulation
+/*
+    * Function: run_round_robin
+    * -----------------------------------------------------------------------------------
+    * Purpose:
+    *   Simulates a Round-Robin scheduling algorithm for multiple processes.
+    * -----------------------------------------------------------------------------------
+    * Parameters:
+    *   processes     - Array of process structures.
+    *   num_processes - Number of processes in the array.
+    * -----------------------------------------------------------------------------------
+    * Behavior:
+    *   - Cycles through processes in order, giving each a fixed quantum of CPU time.
+    *   - Skips finished processes.
+    *   - Executes instructions one by one within the quantum using exec_instruction().
+    *   - Updates process status ("Executing", "Ready", "Finished").
+    *   - Detects processes stuck in repeated jumps and terminates them.
+    *   - Logs context switches and process state changes.
+    *   - Continues until all processes are finished.
+    * -----------------------------------------------------------------------------------
+    * Usage:
+    *   Called to start the simulation of process execution.
+    * -----------------------------------------------------------------------------------
+*/
 void run_round_robin(process_t processes[], int num_processes) {
     bool all_finished = false;
 
