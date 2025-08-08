@@ -22,7 +22,8 @@ void exec_instruction(process_t* p, const char* instr) {
         return;
     }
 
-    if (sscanf(instr, "%4s %9[^,], %9s", command, arg1_str, arg2_str) == 3) {
+    if (sscanf(instr, "%4s %9[^,],%9s", command, arg1_str, arg2_str) == 3 ||
+        sscanf(instr, "%4s %9[^,], %9s", command, arg1_str, arg2_str) == 3) {
         int* dest_reg = get_register_ptr(p, arg1_str);
         if (!dest_reg) {
             printf("Error: Unknown register in '%s'\n", instr);
@@ -48,7 +49,7 @@ void exec_instruction(process_t* p, const char* instr) {
         } else if (strcmp(command, "MUL") == 0) {
             *dest_reg *= value;
         } else {
-            printf("Error: Multiple command in '%s'\n", instr);
+            printf("Error: Unknown arithmetic command in '%s'\n", instr);
         }
     } else if (sscanf(instr, "%4s %9s", command, arg1_str) == 2) {
         if (strcmp(command, "INC") == 0) {
@@ -60,15 +61,17 @@ void exec_instruction(process_t* p, const char* instr) {
             }
         } else if (strcmp(command, "JMP") == 0){
             int dest = atoi(arg1_str);
-
-            if (p->last_jump == dest) {
-                p->repeated_jumps++;
+            if(dest < 0 || dest >= p->num_instructions) {
+                printf("Error: JMP destination out of range in '%s' (pc stays)\n", instr);
             } else {
-                p->repeated_jumps = 0;
+                if (p->last_jump == dest) {
+                    p->repeated_jumps++;
+                } else {
+                    p->repeated_jumps = 0;
+                }
+                p->last_jump = dest;
+                p->pc = dest - 1; // -1 because caller will increment after execution
             }
-            p->last_jump = dest;
-
-            p->pc = dest - 1;
         } else {
             printf("Error: Unknown command in '%s'\n", instr);
         }
@@ -92,17 +95,17 @@ void run_round_robin(process_t processes[], int num_processes) {
 
             all_finished = false;
 
-            printf("\n[Switching context]\n");
-            log_info("Switching context");
-            printf("Saving process (%d) status: PC=%d, AX=%d, BX=%d, CX=%d\n",
-                    p->pid, p->pc, p->ax, p->bx, p->cx);
+        printf("\n[Context switch] -> Next PID %d\n", p->pid);
+        log_info("Context switch to PID %d", p->pid);
+        printf("Saving state: PID=%d PC=%d AX=%d BX=%d CX=%d\n",
+            p->pid, p->pc, p->ax, p->bx, p->cx);
 
             strcpy(p->status, "Executing");
             log_info("Executing process %d", p->pid);
 
             int executed = 0;
             while (executed < p->quantum && p->pc < p->num_instructions) {
-                printf("- %d. Executing %s\n", p->pc, p->instructions[p->pc]);
+                printf("  [%d] %s\n", p->pc, p->instructions[p->pc]);
                 exec_instruction(p, p->instructions[p->pc]);
                 p->pc++;
                 executed++;
@@ -112,15 +115,14 @@ void run_round_robin(process_t processes[], int num_processes) {
                     break;
                 }
             }
-
-            printf("Updated process (%d) status: PC=%d, AX=%d, BX=%d, CX=%d\n",
+            printf("Updated state: PID=%d PC=%d AX=%d BX=%d CX=%d\n",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
             log_info("Process %d updated status: PC=%d, AX=%d, BX=%d, CX=%d",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
 
             if (p->pc >= p->num_instructions || p->repeated_jumps > MAX_REPEATED_JUMPS) {
                 strcpy(p->status, "Finished");
-                printf("- Process %d finished\n", p->pid);
+                printf("  -> Process %d finished\n", p->pid);
                 log_info("Process %d finished execution", p->pid);
             } else {
                 strcpy(p->status, "Ready");
@@ -129,6 +131,6 @@ void run_round_robin(process_t processes[], int num_processes) {
         }
     }
 
-    printf("\n[End of simulation: All process have finished.]\n");
-    log_info("End of simularion: All processes have finished execution");
+    printf("\n[End of simulation] All processes have finished.\n");
+    log_info("End of simulation: All processes have finished execution");
 }
