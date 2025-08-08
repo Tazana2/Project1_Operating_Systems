@@ -6,7 +6,7 @@
 #include "planner.h"
 #include "utils/logger.h"
 
-#define MAX_PROCESSES 10
+#define MAX_PROCESSES 100
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
