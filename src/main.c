@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Initialize the logger
-    init_logger("logs.txt");
+    init_logger("logs.log");
     log_info("Starting simulation with input file: %s", argv[2]);
 
     // Load processes from the specified file
