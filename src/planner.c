@@ -6,6 +6,7 @@
 #include "planner.h"
 #include "utils/logger.h"
 
+// Returns the address of the register inside the process struct
 int* get_register_ptr(process_t* p, const char* reg_name) {
     if (strcmp(reg_name, "AX") == 0) return &(p->ax);
     if (strcmp(reg_name, "BX") == 0) return &(p->bx);
@@ -13,28 +14,29 @@ int* get_register_ptr(process_t* p, const char* reg_name) {
     return NULL;
 }
 
+// Decode and execute a single instruction string on the process state
 void exec_instruction(process_t* p, const char* instr) {
     char command[5];      // "ADD", "SUB", "INC", etc.
     char arg1_str[10];    
     char arg2_str[10];    
     
-    if (strcmp(instr, "NOP") == 0) {
+    if (strcmp(instr, "NOP") == 0) { // do nothing
         return;
     }
 
     if (sscanf(instr, "%4s %9[^,],%9s", command, arg1_str, arg2_str) == 3 ||
         sscanf(instr, "%4s %9[^,], %9s", command, arg1_str, arg2_str) == 3) {
-        int* dest_reg = get_register_ptr(p, arg1_str);
+    int* dest_reg = get_register_ptr(p, arg1_str); // first operand (destination)
         if (!dest_reg) {
             printf("Error: Unknown register in '%s'\n", instr);
             return;
         }
 
         int value;
-        if (isdigit(arg2_str[0]) || (arg2_str[0] == '-' && isdigit(arg2_str[1]))) {
+        if (isdigit(arg2_str[0]) || (arg2_str[0] == '-' && isdigit(arg2_str[1]))) { // immediate value
             value = atoi(arg2_str);
         } else {
-            int* src_reg = get_register_ptr(p, arg2_str); // It's a register
+            int* src_reg = get_register_ptr(p, arg2_str); // second operand is a register
             if (!src_reg) {
                 printf("Error: Register unknown in '%s'\n", instr);
                 return;
@@ -42,7 +44,7 @@ void exec_instruction(process_t* p, const char* instr) {
             value = *src_reg;
         }
         
-        if (strcmp(command, "ADD") == 0) {
+    if (strcmp(command, "ADD") == 0) {      // ADD dest, src|imm
             *dest_reg += value;
         } else if (strcmp(command, "SUB") == 0) {
             *dest_reg -= value;
@@ -52,7 +54,7 @@ void exec_instruction(process_t* p, const char* instr) {
             printf("Error: Unknown arithmetic command in '%s'\n", instr);
         }
     } else if (sscanf(instr, "%4s %9s", command, arg1_str) == 2) {
-        if (strcmp(command, "INC") == 0) {
+    if (strcmp(command, "INC") == 0) {      // INC reg
             int* reg = get_register_ptr(p, arg1_str);
             if(reg) {
                 (*reg)++;
@@ -64,13 +66,13 @@ void exec_instruction(process_t* p, const char* instr) {
             if(dest < 0 || dest >= p->num_instructions) {
                 printf("Error: JMP destination out of range in '%s' (pc stays)\n", instr);
             } else {
-                if (p->last_jump == dest) {
+        if (p->last_jump == dest) { // same jump target again -> count repetition
                     p->repeated_jumps++;
                 } else {
                     p->repeated_jumps = 0;
                 }
                 p->last_jump = dest;
-                p->pc = dest - 1; // -1 because caller will increment after execution
+        p->pc = dest - 1; // -1 because caller loop will ++ after return
             }
         } else {
             printf("Error: Unknown command in '%s'\n", instr);
@@ -82,16 +84,17 @@ void exec_instruction(process_t* p, const char* instr) {
 }
 
 
+// Simple round-robin scheduler simulation
 void run_round_robin(process_t processes[], int num_processes) {
     bool all_finished = false;
 
     while (!all_finished) {
         all_finished = true;
 
-        for (int i = 0; i < num_processes; i++) {
+    for (int i = 0; i < num_processes; i++) { // iterate over each process in order
             process_t* p = &processes[i];
 
-            if (strcmp(p->status, "Finished") == 0) continue;
+            if (strcmp(p->status, "Finished") == 0) continue; // skip completed
 
             all_finished = false;
 
@@ -103,8 +106,8 @@ void run_round_robin(process_t processes[], int num_processes) {
             strcpy(p->status, "Executing");
             log_info("Executing process %d", p->pid);
 
-            int executed = 0;
-            while (executed < p->quantum && p->pc < p->num_instructions) {
+            int executed = 0; // how many instructions consumed from its quantum
+            while (executed < p->quantum && p->pc < p->num_instructions) { // run time slice
                 printf("  [%d] %s\n", p->pc, p->instructions[p->pc]);
                 exec_instruction(p, p->instructions[p->pc]);
                 p->pc++;
@@ -120,17 +123,17 @@ void run_round_robin(process_t processes[], int num_processes) {
             log_info("Process %d updated status: PC=%d, AX=%d, BX=%d, CX=%d",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
 
-            if (p->pc >= p->num_instructions || p->repeated_jumps > MAX_REPEATED_JUMPS) {
+            if (p->pc >= p->num_instructions || p->repeated_jumps > MAX_REPEATED_JUMPS) { // done or killed
                 strcpy(p->status, "Finished");
                 printf("  -> Process %d finished\n", p->pid);
                 log_info("Process %d finished execution", p->pid);
             } else {
-                strcpy(p->status, "Ready");
+                strcpy(p->status, "Ready"); // put back in ready state
                 log_info("Process %d set to Ready", p->pid);
             }
         }
     }
 
     printf("\n[End of simulation] All processes have finished.\n");
-    log_info("End of simulation: All processes have finished execution");
+    log_info("End of simulation: All processes have finished execution"); // log summary
 }
