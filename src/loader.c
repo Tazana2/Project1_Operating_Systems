@@ -4,6 +4,7 @@
 #include "process.h"
 #include "loader.h"
 #include "utils/logger.h"
+#include "utils/colors.h"
 
 /*
     * Function: load_processes
@@ -43,6 +44,7 @@ int load_processes(const char* filename, process_t processes[], int max_processe
     FILE* file = fopen(filename, "r");
     if (!file) {
         log_error("Error opening the processes file: %s", filename);
+        printf(COLOR_ERROR "Error opening the processes file: %s" COLOR_RESET "\n", filename);
         perror("Error openning the processes file");
         return 0;
     }
@@ -55,7 +57,7 @@ int load_processes(const char* filename, process_t processes[], int max_processe
     while (fgets(line, sizeof(line), file) != NULL && process_count < max_processes) { // read each process line
         
         process_t* p = &processes[process_count];
-    p->pid = -1;            // Use -1 to detect if PID was actually parsed
+        p->pid = -1;            // Use -1 to detect if PID was actually parsed
         p->pc = 0;
         p->ax = 0;
         p->bx = 0;
@@ -68,8 +70,15 @@ int load_processes(const char* filename, process_t processes[], int max_processe
 
         line[strcspn(line, "\n")] = 0;
 
-    char* token = strtok(line, ","); // Split by commas: PID, registers, quantum
+        char* token = strtok(line, ","); // Split by commas: PID, registers, quantum
         while (token != NULL) {
+            // Delete spaces for error handling
+            while (isspace((unsigned char)*token)) token++;
+            
+            char* end = token + strlen(token) - 1;
+            while (end > token && isspace((unsigned char)*end)) end--;
+            end[1] = '\0';
+            
             char reg_name[3];
             int value;
 
@@ -99,7 +108,7 @@ int load_processes(const char* filename, process_t processes[], int max_processe
                 fclose(instr_file);
             } else {
                 log_error("Can't find the instructions file '%s' for PID %d.", instr_filename, p->pid);
-                printf("Warning: Can't find the instructions file '%s' for PID %d.\n", instr_filename, p->pid);
+                printf(COLOR_WARNING "Warning: Can't find the instructions file '%s' for PID %d." COLOR_RESET "\n", instr_filename, p->pid);
             }
             process_count++;
         }

@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include "planner.h"
 #include "utils/logger.h"
+#include "utils/colors.h"
 
 /*
     * Function: get_register_ptr
@@ -65,7 +66,7 @@ void exec_instruction(process_t* p, const char* instr) {
         sscanf(instr, "%4s %9[^,], %9s", command, arg1_str, arg2_str) == 3) {
         int* dest_reg = get_register_ptr(p, arg1_str); // first operand (destination)
         if (!dest_reg) {
-            printf("Error: Unknown register in '%s'\n", instr);
+            printf(COLOR_ERROR "Error: Unknown register in '%s'" COLOR_RESET "\n", instr);
             return;
         }
 
@@ -76,7 +77,7 @@ void exec_instruction(process_t* p, const char* instr) {
         } else {
             int* src_reg = get_register_ptr(p, arg2_str); // second operand is a register
             if (!src_reg) {
-                printf("Error: Register unknown in '%s'\n", instr);
+                printf(COLOR_ERROR "Error: Register unknown in '%s'" COLOR_RESET "\n", instr);
                 return;
             }
             value = *src_reg;
@@ -89,7 +90,7 @@ void exec_instruction(process_t* p, const char* instr) {
             } else if (strcmp(command, "MUL") == 0) {
                 *dest_reg *= value;
             } else {
-                printf("Error: Unknown arithmetic command in '%s'\n", instr);
+                printf(COLOR_ERROR "Error: Unknown arithmetic command in '%s'" COLOR_RESET "\n", instr);
             }
 
     // Format: COMMAND ARG1 (e.g., "INC AX" or "JMP 5")
@@ -99,12 +100,12 @@ void exec_instruction(process_t* p, const char* instr) {
             if (reg) {
                 (*reg)++;
             } else{
-                printf("Error: Unknown register in '%s'\n", instr);
+                printf(COLOR_ERROR "Error: Unknown register in '%s'" COLOR_RESET "\n", instr);
             }
         } else if (strcmp(command, "JMP") == 0) {
             int dest = atoi(arg1_str);
             if (dest < 0 || dest >= p->num_instructions) {
-                printf("Error: JMP destination out of range in '%s' (pc stays)\n", instr);
+                printf(COLOR_ERROR "Error: JMP destination out of range in '%s' (pc stays)" COLOR_RESET "\n", instr);
             } else {
                 // Track repeated jumps to detect infinite loops
                 if (p->last_jump == dest) {
@@ -118,10 +119,10 @@ void exec_instruction(process_t* p, const char* instr) {
                 p->pc = dest - 1;
             }
         } else {
-            printf("Error: Unknown command in '%s'\n", instr);
+            printf(COLOR_ERROR "Error: Unknown command in '%s'" COLOR_RESET "\n", instr);
         }
     } else {
-        printf("Error: Unknown sintax '%s'\n", instr);
+        printf(COLOR_ERROR "Error: Unknown sintax '%s'" COLOR_RESET "\n", instr);
     }
 }
 
@@ -154,16 +155,17 @@ void run_round_robin(process_t processes[], int num_processes) {
     while (!all_finished) {
         all_finished = true;
 
-    for (int i = 0; i < num_processes; i++) { // iterate over each process in order
+        for (int i = 0; i < num_processes; i++) { // iterate over each process in order
             process_t* p = &processes[i];
 
             if (strcmp(p->status, "Finished") == 0) continue; // skip completed
 
             all_finished = false;
 
-        printf("\n[Context switch] -> Next PID %d\n", p->pid);
-        log_info("Context switch to PID %d", p->pid);
-        printf("Saving state: PID=%d PC=%d AX=%d BX=%d CX=%d\n",
+            printf(COLOR_CONTEXT "\n[Context switch] -> Next PID %d" COLOR_RESET "\n", p->pid);
+            log_info("Context switch to PID %d", p->pid);
+            printf(COLOR_INFO "Saving state: " COLOR_RESET COLOR_PROCESS "PID=%d " COLOR_RESET 
+                COLOR_REGISTER "PC=%d AX=%d BX=%d CX=%d" COLOR_RESET "\n",
             p->pid, p->pc, p->ax, p->bx, p->cx);
 
             strcpy(p->status, "Executing");
@@ -171,24 +173,25 @@ void run_round_robin(process_t processes[], int num_processes) {
 
             int executed = 0; // how many instructions consumed from its quantum
             while (executed < p->quantum && p->pc < p->num_instructions) { // run time slice
-                printf("  [%d] %s\n", p->pc, p->instructions[p->pc]);
+                printf(COLOR_INSTRUCTION "  [%d] %s" COLOR_RESET "\n", p->pc, p->instructions[p->pc]);
                 exec_instruction(p, p->instructions[p->pc]);
                 p->pc++;
                 executed++;
                 if (p->repeated_jumps > MAX_REPEATED_JUMPS) {
-                    printf("Process %d has exceeded the maximum number of repeated jumps (%d). Terminating process...\n", p->pid, MAX_REPEATED_JUMPS);
+                    printf(COLOR_ERROR "Process %d has exceeded the maximum number of repeated jumps (%d). Terminating process..." COLOR_RESET "\n", p->pid, MAX_REPEATED_JUMPS);
                     log_error("Process %d exceeded max repeated jumps. Terminating process", p->pid);
                     break;
                 }
             }
-            printf("Updated state: PID=%d PC=%d AX=%d BX=%d CX=%d\n",
+            printf(COLOR_INFO "Updated state: " COLOR_RESET COLOR_PROCESS "PID=%d " COLOR_RESET 
+                    COLOR_REGISTER "PC=%d AX=%d BX=%d CX=%d" COLOR_RESET "\n",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
             log_info("Process %d updated status: PC=%d, AX=%d, BX=%d, CX=%d",
                     p->pid, p->pc, p->ax, p->bx, p->cx);
 
             if (p->pc >= p->num_instructions || p->repeated_jumps > MAX_REPEATED_JUMPS) { // done or killed
                 strcpy(p->status, "Finished");
-                printf("  -> Process %d finished\n", p->pid);
+                printf(COLOR_SUCCESS "  -> Process %d finished" COLOR_RESET "\n", p->pid);
                 log_info("Process %d finished execution", p->pid);
             } else {
                 strcpy(p->status, "Ready"); // put back in ready state
@@ -197,6 +200,6 @@ void run_round_robin(process_t processes[], int num_processes) {
         }
     }
 
-    printf("\n[End of simulation] All processes have finished.\n");
+    printf(COLOR_SUCCESS COLOR_BOLD "\n[End of simulation] All processes have finished." COLOR_RESET "\n");
     log_info("End of simulation: All processes have finished execution"); // log summary
 }
