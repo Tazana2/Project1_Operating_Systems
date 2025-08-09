@@ -50,6 +50,7 @@ Genera el ejecutable `procplanner`.
 ```sh
 ./procplanner -f processes.txt
 ```
+Esto leerá el archivo processes.txt cargando las instrucciones de los n procesos 1.txt, 2.txt, ... , n.txt. **Estos archivos deben estar en el mismo directorio donde se ejecuta procplanner.** 
 
 Salida típica (fragmento):
 ```
