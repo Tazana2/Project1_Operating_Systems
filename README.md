@@ -65,7 +65,7 @@ Updated state: PID=1 PC=3 AX=7 BX=1 CX=0
 Si un proceso ejecuta el mismo destino de `JMP` más de n veces consecutivas se considera bloqueo y se termina (`MAX_REPEATED_JUMPS`).
 
 ## Log
-Se crea `logs.txt` con eventos (inicio, carga de procesos, cambios de contexto, finalización de procesos, errores).
+Se crea `logs.log` con eventos (inicio, carga de procesos, cambios de contexto, finalización de procesos, errores).
 
 ## Versión del compilador
 Proyecto probado con `gcc (GCC) 13.x` (flag `-std=c11`).
