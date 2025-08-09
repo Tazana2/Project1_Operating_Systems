@@ -57,7 +57,7 @@ void exec_instruction(process_t* p, const char* instr) {
     char arg1_str[10];    // First argument (destination register or jump target)
     char arg2_str[10];    // Second argument (value or source register)
     
-    if (strcmp(instr, "NOP") == 0) { // do nothing
+     if (strstr(instr, "NOP") != NULL) { 
         return;
     }
 
